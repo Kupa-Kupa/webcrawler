@@ -3,39 +3,28 @@ https://github.com/jsdom/jsdom
 */
 
 const { JSDOM } = require('jsdom');
-// const https = require('https');
-
-// https
-//   .get(
-//     'https://www.google.com',
-//     { headers: { 'User-Agent': 'user' } },
-//     function (res) {
-//       console.log('status code:', res.statusCode);
-//     }
-//   )
-//   .on('error', function (err) {
-//     console.error(err);
-//   });
 
 async function crawlPage(baseURL, currentURL, pages) {
   const baseURLObject = new URL(baseURL);
   const currentURLObject = new URL(currentURL);
+
   if (baseURLObject.hostname !== currentURLObject.hostname) {
     return pages;
   }
 
   const normalisedCurrentURL = normaliseURL(currentURL);
-  if (pages[normalisedCurrentURL] > 0) {
-    pages[normalisedCurrentURL]++;
+
+  if (pages[normalisedCurrentURL] !== undefined) {
+    pages[normalisedCurrentURL].count++;
     return pages;
   }
-
-  pages[normalisedCurrentURL] = 1;
 
   console.log(`actively crawling ${currentURL}`);
 
   try {
     const resp = await fetch(currentURL);
+
+    pages[normalisedCurrentURL] = { count: 1, response: resp.status };
 
     if (resp.status >= 400) {
       console.log(
@@ -61,9 +50,6 @@ async function crawlPage(baseURL, currentURL, pages) {
     }
 
     return pages;
-
-    // console.log(`${currentURL} - Status code:`, resp.status);
-    // console.log(await resp.text());
   } catch (error) {
     console.error(`error in fetch: ${error.message}, on page ${currentURL}`);
   }
@@ -88,7 +74,7 @@ function getURLsFromHTML(htmlBody, baseURL) {
 
 function normaliseURL(urlString) {
   const urlObj = new URL(urlString);
-  // console.log(urlObj);
+
   const hostPath = `${urlObj.hostname}${urlObj.pathname}`;
 
   if (hostPath.length > 0 && hostPath.slice(-1) === '/') {

@@ -6,8 +6,10 @@ function printReport(pages) {
   const sortedPages = sortPages(pages);
   for (const page of sortedPages) {
     const url = page[0];
-    const hits = page[1];
-    console.log(`Found ${hits} links to page: ${url}`);
+    const pageObject = page[1];
+    console.log(
+      `Found ${pageObject.count} links (response ${pageObject.response}) to page: ${url}`
+    );
   }
 }
 
@@ -15,8 +17,8 @@ function sortPages(pages) {
   const pagesArray = Object.entries(pages);
 
   pagesArray.sort((a, b) => {
-    aCount = a[1];
-    bCount = b[1];
+    aCount = a[1].count;
+    bCount = b[1].count;
     return bCount - aCount;
   });
 
