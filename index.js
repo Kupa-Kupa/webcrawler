@@ -15,11 +15,12 @@ async function main() {
 
   const baseUrl = process.argv[2];
   const baseURLObject = new URL(baseUrl);
+  const originURL = baseURLObject.origin;
 
   //   process.argv.forEach((arg) => console.log(arg));
 
   console.log(`starting crawl of ${baseUrl}`);
-  const pages = await crawlPage(baseUrl, baseUrl, {});
+  const pages = await crawlPage(originURL, baseUrl, {});
 
   //   for (const page of Object.entries(pages)) {
   //     console.log(page);

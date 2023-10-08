@@ -1,14 +1,28 @@
 /*
-https://github.com/jsdom/jsdom
+  https://github.com/jsdom/jsdom
+  https://github.com/axios/axios
+*/
+
+/*
+  pages object should probably have the following structure if 404:
+
+  pages[normalisedCurrentURL] = { count: 1, response: resp.status, referrer: url };
 */
 
 const { JSDOM } = require('jsdom');
+const axios = require('axios');
 
 async function crawlPage(baseURL, currentURL, pages) {
   const baseURLObject = new URL(baseURL);
   const currentURLObject = new URL(currentURL);
+  // console.log(`${baseURL} => ${currentURL}`);
 
   if (baseURLObject.hostname !== currentURLObject.hostname) {
+    return pages;
+  }
+
+  // these links should probably not be ignored, but flagged to fix
+  if (currentURL === '') {
     return pages;
   }
 
@@ -22,7 +36,13 @@ async function crawlPage(baseURL, currentURL, pages) {
   console.log(`actively crawling ${currentURL}`);
 
   try {
-    const resp = await fetch(currentURL);
+    // don't want to throw an error on any response codes
+    // https://github.com/axios/axios#handling-errors
+    const resp = await axios.get(currentURL, {
+      validateStatus: function (status) {
+        return true;
+      },
+    });
 
     pages[normalisedCurrentURL] = { count: 1, response: resp.status };
 
@@ -33,7 +53,9 @@ async function crawlPage(baseURL, currentURL, pages) {
       return pages;
     }
 
-    const contentType = resp.headers.get('content-type');
+    const contentType = resp.headers['content-type'];
+    // console.log('content type:', contentType);
+
     if (!contentType.includes('text/html')) {
       console.log(
         `non HTML response, content type: ${contentType}, on page ${currentURL}`
@@ -41,7 +63,9 @@ async function crawlPage(baseURL, currentURL, pages) {
       return pages;
     }
 
-    const htmlBody = await resp.text();
+    // get html body from response
+    const htmlBody = resp.data;
+    // console.log(htmlBody);
 
     const nextURLs = getURLsFromHTML(htmlBody, baseURL);
 
@@ -52,6 +76,10 @@ async function crawlPage(baseURL, currentURL, pages) {
     return pages;
   } catch (error) {
     console.error(`error in fetch: ${error.message}, on page ${currentURL}`);
+
+    // pages[normalisedCurrentURL] = { count: 1, response: resp.status };
+
+    return pages;
   }
 }
 
@@ -59,11 +87,22 @@ async function crawlPage(baseURL, currentURL, pages) {
 function getURLsFromHTML(htmlBody, baseURL) {
   const dom = new JSDOM(htmlBody);
 
-  const linkNodeList = dom.window.document.querySelectorAll('a');
+  // Don't want any links without a href attribute
+  const linkNodeList = dom.window.document.querySelectorAll('a[href]');
 
   const urls = Array.from(linkNodeList).map((link) => {
     if (link.href.slice(0, 1) === '/') {
       return `${baseURL}${link.href}`;
+    } else if (link.href.slice(0, 3) === 'www') {
+      // axios throwing error if no scheme provided
+      return `https://${link.href}`;
+    } else if (
+      link.href === '' ||
+      link.href === null ||
+      link.href === undefined
+    ) {
+      // if no href is provided there will be an invalid url error in request
+      return '';
     } else {
       return link.href;
     }
