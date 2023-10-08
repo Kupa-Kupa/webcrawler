@@ -20,12 +20,18 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
     return pages;
   }
 
-  // these links should probably not be ignored, but flagged to fix
-  if (currentURL === '') {
-    return pages;
-  }
-
   const normalisedCurrentURL = normaliseURL(currentURL);
+
+  // these links should probably not be ignored, but flagged to fix
+  // if (currentURL === '') {
+  //   pages[normalisedCurrentURL] = {
+  //     count: 1,
+  //     response: 404,
+  //     referrer: [referrerURL],
+  //   };
+
+  //   return pages;
+  // }
 
   if (pages[normalisedCurrentURL] !== undefined) {
     pages[normalisedCurrentURL].count++;
@@ -43,6 +49,7 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
   try {
     // don't want to throw an error on any response codes
     // https://github.com/axios/axios#handling-errors
+    // console.log('current url', currentURL);
     const resp = await axios.get(currentURL, {
       validateStatus: function (status) {
         return true;
@@ -84,20 +91,54 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
 
     return pages;
   } catch (error) {
+    if (error.message === 'Invalid URL') {
+      const brokenLinks = await getBrokenURLsFromHTML(currentURL);
+      console.log(brokenLinks);
+    }
+    console.log('----------------------------------------');
     console.error(`error in fetch: ${error.message}, on page ${currentURL}`);
+    console.log(`${error}`);
+    console.log(`currentURL: ${currentURL}`);
+    console.log(`baseURL: ${baseURL}`);
+    console.log(`referrerURL: ${referrerURL}`);
+    console.log('----------------------------------------');
 
-    // pages[normalisedCurrentURL] = { count: 1, response: resp.status };
+    pages[normalisedCurrentURL] = {
+      count: 1,
+      response: error.message,
+      referrer: [referrerURL],
+    };
 
     return pages;
   }
 }
 
 // Helper functions
+async function getBrokenURLsFromHTML(currentURL) {
+  const resp = await axios.get(currentURL, {
+    validateStatus: function (status) {
+      return true;
+    },
+  });
+
+  const htmlBody = resp.data;
+
+  const dom = new JSDOM(htmlBody);
+
+  const brokenLinkNodeList =
+    dom.window.document.querySelectorAll('a:not([href])');
+
+  const links = Array.from(brokenLinkNodeList);
+
+  return links;
+}
+
 function getURLsFromHTML(htmlBody, baseURL) {
   const dom = new JSDOM(htmlBody);
 
   // Don't want any links without a href attribute
-  const linkNodeList = dom.window.document.querySelectorAll('a[href]');
+  // const linkNodeList = dom.window.document.querySelectorAll('a[href]');
+  const linkNodeList = dom.window.document.querySelectorAll('a');
 
   const urls = Array.from(linkNodeList).map((link) => {
     if (link.href.slice(0, 1) === '/') {
