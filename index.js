@@ -1,5 +1,6 @@
 const { crawlPage } = require('./crawl.js');
 const { printReport } = require('./report.js');
+const { generateCSV } = require('./generateCSV.js');
 
 async function main() {
   if (process.argv.length < 3) {
@@ -13,6 +14,7 @@ async function main() {
   }
 
   const baseUrl = process.argv[2];
+  const baseURLObject = new URL(baseUrl);
 
   //   process.argv.forEach((arg) => console.log(arg));
 
@@ -24,6 +26,7 @@ async function main() {
   //   }
 
   printReport(pages);
+  generateCSV(pages, `${baseURLObject.hostname}_link_report.csv`);
 }
 
 main();
