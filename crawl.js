@@ -5,14 +5,13 @@
 
 /*
   pages object should probably have the following structure if 404:
-
   pages[normalisedCurrentURL] = { count: 1, response: resp.status, referrer: url };
 */
 
 const { JSDOM } = require('jsdom');
 const axios = require('axios');
 
-async function crawlPage(baseURL, currentURL, pages) {
+async function crawlPage(baseURL, currentURL, referrerURL, pages) {
   const baseURLObject = new URL(baseURL);
   const currentURLObject = new URL(currentURL);
   // console.log(`${baseURL} => ${currentURL}`);
@@ -30,6 +29,12 @@ async function crawlPage(baseURL, currentURL, pages) {
 
   if (pages[normalisedCurrentURL] !== undefined) {
     pages[normalisedCurrentURL].count++;
+
+    // if new referrer url, add it to list of referrers
+    if (!pages[normalisedCurrentURL].referrer.includes(referrerURL)) {
+      pages[normalisedCurrentURL].referrer.push(referrerURL);
+    }
+
     return pages;
   }
 
@@ -44,7 +49,11 @@ async function crawlPage(baseURL, currentURL, pages) {
       },
     });
 
-    pages[normalisedCurrentURL] = { count: 1, response: resp.status };
+    pages[normalisedCurrentURL] = {
+      count: 1,
+      response: resp.status,
+      referrer: [referrerURL],
+    };
 
     if (resp.status >= 400) {
       console.log(
@@ -70,7 +79,7 @@ async function crawlPage(baseURL, currentURL, pages) {
     const nextURLs = getURLsFromHTML(htmlBody, baseURL);
 
     for (const nextURL of nextURLs) {
-      pages = await crawlPage(baseURL, nextURL, pages);
+      pages = await crawlPage(baseURL, nextURL, currentURL, pages);
     }
 
     return pages;
