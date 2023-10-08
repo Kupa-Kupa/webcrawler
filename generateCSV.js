@@ -3,13 +3,14 @@ const fs = require('fs');
 function generateCSV(pages, filename = 'link_report.csv') {
   const pagesArray = Object.entries(pages);
 
-  let csvData = `"URL","Occurrence of URL","Response Code","Referring URLs"\r\n${pagesArray
+  let csvData = `"URL","Occurrence of URL","Response Code","Broken Links","Referring URLs"\r\n${pagesArray
     .map((page) => {
       const url = page[0];
       const count = page[1].count;
       const respCode = page[1].response;
       const referrerURLs = page[1].referrer;
-      return `${url},${count},${respCode},${referrerURLs}`;
+      const brokenLinks = page[1].broken;
+      return `${url},${count},${respCode},${brokenLinks},${referrerURLs}`;
     })
     .join('\r\n')}`;
 

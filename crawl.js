@@ -3,35 +3,18 @@
   https://github.com/axios/axios
 */
 
-/*
-  pages object should probably have the following structure if 404:
-  pages[normalisedCurrentURL] = { count: 1, response: resp.status, referrer: url };
-*/
-
 const { JSDOM } = require('jsdom');
 const axios = require('axios');
 
 async function crawlPage(baseURL, currentURL, referrerURL, pages) {
   const baseURLObject = new URL(baseURL);
   const currentURLObject = new URL(currentURL);
-  // console.log(`${baseURL} => ${currentURL}`);
 
   if (baseURLObject.hostname !== currentURLObject.hostname) {
     return pages;
   }
 
   const normalisedCurrentURL = normaliseURL(currentURL);
-
-  // these links should probably not be ignored, but flagged to fix
-  // if (currentURL === '') {
-  //   pages[normalisedCurrentURL] = {
-  //     count: 1,
-  //     response: 404,
-  //     referrer: [referrerURL],
-  //   };
-
-  //   return pages;
-  // }
 
   if (pages[normalisedCurrentURL] !== undefined) {
     pages[normalisedCurrentURL].count++;
@@ -49,7 +32,6 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
   try {
     // don't want to throw an error on any response codes
     // https://github.com/axios/axios#handling-errors
-    // console.log('current url', currentURL);
     const resp = await axios.get(currentURL, {
       validateStatus: function (status) {
         return true;
@@ -60,28 +42,27 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
       count: 1,
       response: resp.status,
       referrer: [referrerURL],
+      broken: '',
     };
 
     if (resp.status >= 400) {
       console.log(
-        `error in fetch with status code: ${resp.status}, on page ${currentURL}`
+        `ERROR in request with status code: ${resp.status}, on page ${currentURL}`
       );
       return pages;
     }
 
     const contentType = resp.headers['content-type'];
-    // console.log('content type:', contentType);
 
     if (!contentType.includes('text/html')) {
       console.log(
-        `non HTML response, content type: ${contentType}, on page ${currentURL}`
+        `Non HTML response, content type: ${contentType}, on page ${currentURL}`
       );
       return pages;
     }
 
     // get html body from response
     const htmlBody = resp.data;
-    // console.log(htmlBody);
 
     const nextURLs = getURLsFromHTML(htmlBody, baseURL);
 
@@ -93,20 +74,33 @@ async function crawlPage(baseURL, currentURL, referrerURL, pages) {
   } catch (error) {
     if (error.message === 'Invalid URL') {
       const brokenLinks = await getBrokenURLsFromHTML(currentURL);
+
+      pages[normalisedCurrentURL] = {
+        count: 1,
+        response: error.message,
+        referrer: [referrerURL],
+        broken: brokenLinks,
+      };
+
+      console.log('----------------------------------------');
+      console.error(
+        `ERROR in request: ${error.message}, on page ${currentURL}`
+      );
       console.log(brokenLinks);
+      console.log('----------------------------------------');
+
+      return pages;
     }
+
     console.log('----------------------------------------');
-    console.error(`error in fetch: ${error.message}, on page ${currentURL}`);
-    console.log(`${error}`);
-    console.log(`currentURL: ${currentURL}`);
-    console.log(`baseURL: ${baseURL}`);
-    console.log(`referrerURL: ${referrerURL}`);
+    console.error(`ERROR in request: ${error.message}, on page ${currentURL}`);
     console.log('----------------------------------------');
 
     pages[normalisedCurrentURL] = {
       count: 1,
       response: error.message,
       referrer: [referrerURL],
+      broken: '',
     };
 
     return pages;
@@ -128,7 +122,9 @@ async function getBrokenURLsFromHTML(currentURL) {
   const brokenLinkNodeList =
     dom.window.document.querySelectorAll('a:not([href])');
 
-  const links = Array.from(brokenLinkNodeList);
+  const links = Array.from(brokenLinkNodeList).map((link) => {
+    return link.outerHTML;
+  });
 
   return links;
 }
