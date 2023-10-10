@@ -10,7 +10,7 @@ function generateCSV(pages, filename = 'link_report.csv') {
       const respCode = page[1].response;
       const referrerURLs = page[1].referrer;
       const brokenLinks = page[1].broken;
-      return `${url},${count},${respCode},${brokenLinks},${referrerURLs}`;
+      return `${url},${count},${respCode},"${brokenLinks}",${referrerURLs}`;
     })
     .join('\r\n')}`;
 
